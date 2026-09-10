@@ -1,0 +1,104 @@
+# ==============================================================================
+# ANTIGRAVITY WORKFLOW CONFIGURATION
+# Workflow Name: Trade Anomaly Monitoring Pipeline
+# Description: Automated end-to-end extraction, feature engineering, ML anomaly detection,
+#              decision branching, output export, and dashboard trigger.
+# ==============================================================================
+
+Workflow: TradeAnomalyMonitoring
+Version: "2.0"
+Trigger:
+  Type: "Hybrid" # Manual (on-demand) or Scheduled (hourly)
+  Cron: "0 * * * *"
+  Enabled: true
+
+Variables:
+  DB_PATH: "trades.db"
+  RAW_CSV: "trades_raw.csv"
+  OUTPUT_DIR: "outputs"
+  TABLEAU_ENDPOINT: "https://tableau-server/api/v1/refresh/TradeMonitoring"
+
+Tasks:
+  - TaskID: task_extract
+    Name: "STEP 1: EXTRACT (Data Ingestion)"
+    Type: "data_source"
+    Source: "csv:trades_raw.csv"
+    Action: "read_all"
+    Output: "raw_trades"
+
+  - TaskID: task_sql_features
+    Name: "STEP 2: TRANSFORM (Feature Engineering)"
+    Type: "sql_query"
+    Database: "trades.db"
+    Query: |
+      WITH instrument_stats AS (
+          SELECT 
+              instrument,
+              AVG(quantity) as avg_qty,
+              SQRT(MAX(0.0001, AVG(quantity * quantity) - AVG(quantity) * AVG(quantity))) as std_qty,
+              AVG(price) as avg_price
+          FROM trades
+          GROUP BY instrument
+      )
+      SELECT 
+          t.trade_id,
+          t.execution_time,
+          t.quantity,
+          t.price,
+          t.counterparty,
+          t.instrument,
+          (t.quantity - s.avg_qty) / NULLIF(s.std_qty, 0) as qty_zscore,
+          ABS(t.price - s.avg_price) / NULLIF(s.avg_price, 0) as price_dev_pct,
+          (SELECT COUNT(*) FROM trades t2 
+           WHERE t2.counterparty = t.counterparty 
+           AND JULIANDAY(t2.execution_time) <= JULIANDAY(t.execution_time)
+           AND JULIANDAY(t2.execution_time) >= JULIANDAY(t.execution_time) - (1.0 / 24.0)
+          ) as party_freq_1hr
+      FROM trades t
+      LEFT JOIN instrument_stats s ON t.instrument = s.instrument
+      ORDER BY t.execution_time DESC;
+    Output: "features_df"
+
+  - TaskID: task_run_python
+    Name: "STEP 3: PYTHON ANOMALY DETECTION"
+    Type: "python_script"
+    Script: "anomaly_detection.py"
+    Input: "features_df"
+    Output: 
+      - "trade_monitoring_all_trades.csv"
+      - "trade_monitoring_flagged.csv"
+      - "trade_monitoring_summary.json"
+
+  - TaskID: task_decision
+    Name: "STEP 4: DECISION LOGIC (Branching)"
+    Type: "conditional"
+    Condition: "summary.flagged_count > 0"
+    IfTrue:
+      - Action: "mark_priority_urgent"
+      - Action: "trigger_vba_update"
+      - Action: "notify_operations_slack"
+    IfFalse:
+      - Action: "log_no_anomalies"
+      - Action: "mark_priority_low"
+
+  - TaskID: task_export_results
+    Name: "STEP 5: EXPORT OUTPUTS & AUDIT TRAIL"
+    Type: "file_export"
+    Files:
+      - Source: "trade_monitoring_flagged.csv"
+        Target: "outputs/flagged_trades.csv"
+      - Source: "trade_monitoring_all_trades.csv"
+        Target: "outputs/all_trades.csv"
+      - Source: "trade_monitoring_summary.json"
+        Target: "outputs/summary.json"
+      - Source: "Trade_Anomaly_Alerts.xlsx"
+        Target: "outputs/alert_trades.xlsx"
+
+  - TaskID: task_tableau_refresh
+    Name: "STEP 6: TRIGGER TABLEAU REFRESH"
+    Type: "api_call"
+    Endpoint: "https://tableau-server/api/v1/refresh/TradeMonitoring"
+    Method: "POST"
+    Headers:
+      Authorization: "Bearer ${TABLEAU_TOKEN}"
+    TriggerOnCompletion: true

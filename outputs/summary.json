@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-07-22T13:24:39.653290",
+  "total_trades": 1000,
+  "flagged_count": 49,
+  "flagged_pct": "4.90%",
+  "high_severity": 21,
+  "medium_severity": 28,
+  "total_notional_risk": 254962122.899339
+}

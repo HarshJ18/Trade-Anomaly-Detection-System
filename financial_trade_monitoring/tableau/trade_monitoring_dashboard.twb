@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<workbook original-version='18.1' version='18.1' xmlns:user='http://www.tableausoftware.com/xml/user'>
+  <preferences>
+    <preference name='ui.encoding.shelf.height' value='24' />
+    <preference name='ui.shelf.height' value='26' />
+  </preferences>
+  <datasources>
+    <datasource caption='all_trades_scored' inline='true' name='federated.1trade_monitoring' version='18.1'>
+      <connection class='federated'>
+        <named-connections>
+          <named-connection caption='all_trades_scored' name='textscan.1trade_monitoring'>
+            <connection class='textscan' directory='../data' filename='all_trades_scored.csv' password='' server='' />
+          </named-connection>
+        </named-connections>
+        <relation connection='textscan.1trade_monitoring' name='all_trades_scored.csv' table='[all_trades_scored#csv]' type='table'>
+          <columns character-set='UTF-8' header='yes' locale='en_US' separator=','>
+            <column datatype='string' name='TradeID' ordinal='0' />
+            <column datatype='datetime' name='ExecutionTime' ordinal='1' />
+            <column datatype='real' name='Quantity' ordinal='2' />
+            <column datatype='real' name='Price' ordinal='3' />
+            <column datatype='string' name='Counterparty' ordinal='4' />
+            <column datatype='string' name='Instrument' ordinal='5' />
+            <column datatype='string' name='TradeSide' ordinal='6' />
+            <column datatype='string' name='Trader' ordinal='7' />
+            <column datatype='string' name='Desk' ordinal='8' />
+            <column datatype='string' name='ExecutionVenue' ordinal='9' />
+            <column datatype='real' name='qty_zscore' ordinal='10' />
+            <column datatype='real' name='price_dev_pct' ordinal='11' />
+            <column datatype='integer' name='party_freq_1hr' ordinal='12' />
+            <column datatype='real' name='anomaly_score' ordinal='13' />
+            <column datatype='boolean' name='is_anomaly' ordinal='14' />
+            <column datatype='string' name='severity_level' ordinal='15' />
+            <column datatype='string' name='anomaly_type' ordinal='16' />
+            <column datatype='string' name='flagged_reason' ordinal='17' />
+          </columns>
+        </relation>
+      </connection>
+      <aliases enabled='yes' />
+      <column datatype='real' name='[Calculated_TotalRisk]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='SUM(IF [severity_level] != &quot;NORMAL&quot; THEN [Quantity] * [Price] ELSE 0 END)' />
+      </column>
+      <column datatype='real' name='[Calculated_SuccessRate]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='(COUNT([TradeID]) - COUNT(IF [severity_level] != &quot;NORMAL&quot; THEN [TradeID] END)) / COUNT([TradeID])' />
+      </column>
+      <layout dim-ordering='alphabetic' dim-percentage='0.5' measure-ordering='alphabetic' measure-percentage='0.5' show-structure='true' />
+    </datasource>
+  </datasources>
+  <worksheets>
+    <worksheet name='WS1_KPI_Cards'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='all_trades_scored' name='federated.1trade_monitoring' />
+          </datasources>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <panes>
+          <pane>
+            <encodings>
+              <text column='[federated.1trade_monitoring].[Calculated_TotalRisk]' />
+            </encodings>
+          </pane>
+        </panes>
+        <rows />
+        <cols />
+      </table>
+    </worksheet>
+    <worksheet name='WS2_Severity_Distribution'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='all_trades_scored' name='federated.1trade_monitoring' />
+          </datasources>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <panes>
+          <pane>
+            <encodings>
+              <color column='[federated.1trade_monitoring].[severity_level]' />
+            </encodings>
+          </pane>
+        </panes>
+        <rows>[federated.1trade_monitoring].[severity_level]</rows>
+        <cols>[federated.1trade_monitoring].[cnt:TradeID:qk]</cols>
+      </table>
+    </worksheet>
+    <worksheet name='WS3_Anomaly_Type_Breakdown'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='all_trades_scored' name='federated.1trade_monitoring' />
+          </datasources>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <panes>
+          <pane>
+            <encodings>
+              <color column='[federated.1trade_monitoring].[anomaly_type]' />
+            </encodings>
+          </pane>
+        </panes>
+        <rows>[federated.1trade_monitoring].[anomaly_type]</rows>
+        <cols>[federated.1trade_monitoring].[cnt:TradeID:qk]</cols>
+      </table>
+    </worksheet>
+    <worksheet name='WS4_Risk_by_Counterparty'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='all_trades_scored' name='federated.1trade_monitoring' />
+          </datasources>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <rows>[federated.1trade_monitoring].[Counterparty]</rows>
+        <cols>[federated.1trade_monitoring].[Calculated_TotalRisk]</cols>
+      </table>
+    </worksheet>
+    <worksheet name='WS5_Risk_by_Instrument'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='all_trades_scored' name='federated.1trade_monitoring' />
+          </datasources>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <rows>[federated.1trade_monitoring].[Instrument]</rows>
+        <cols>[federated.1trade_monitoring].[Calculated_TotalRisk]</cols>
+      </table>
+    </worksheet>
+    <worksheet name='WS6_Flagged_Trades_Detail'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='all_trades_scored' name='federated.1trade_monitoring' />
+          </datasources>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <rows>[federated.1trade_monitoring].[TradeID]</rows>
+        <cols />
+      </table>
+    </worksheet>
+  </worksheets>
+  <dashboards>
+    <dashboard name='Trade Anomaly Monitoring'>
+      <style />
+      <size maxheight='1080' maxwidth='1920' minheight='800' minwidth='1200' />
+      <zones>
+        <zone h='100000' id='1' type='layout-basic' w='100000' x='0' y='0'>
+          <zone h='98000' id='2' name='WS1_KPI_Cards' w='98000' x='1000' y='1000' />
+        </zone>
+      </zones>
+    </dashboard>
+  </dashboards>
+</workbook>
