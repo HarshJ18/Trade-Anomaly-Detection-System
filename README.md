@@ -217,10 +217,10 @@ python pipeline_runner.py
 
 ## Author / Contact
 
-**Harsh Joshi**
+**Harsh Jadhav**
 - **GitHub:** [@HarshJ18](https://github.com/HarshJ18)
-- **LinkedIn:** [Harsh Joshi](https://linkedin.com/in/your-linkedin-handle)
-- **Email:** `[your-email@domain.com]`
+- **LinkedIn:** [Harsh Jadhav](https://www.linkedin.com/in/harsh-jadhav-906673232/)
+- **Email:** `jadhavharsh576@gmail.com`
 
 ---
 *Feel free to star ⭐ this repository if you find it useful or insightful!*
